@@ -1,4 +1,4 @@
-name: Dynamic QA Environment Lifecycle (k3d + Helm + Allure)
+name: Dynamic QA Environment Lifecycle (Kubernetes + Helm + Allure)
 
 on:
   push:
@@ -16,19 +16,28 @@ jobs:
       - name: 1. Получение исходного кода
         uses: actions/checkout@v4
 
-      - name: 2. Установка k3d и создание 3-узлового кластера Kubernetes
+      - name: 2. Создание 3-узлового кластера Kubernetes (kind)
         run: |
-          brew install k3d
-          k3d cluster create qa-cluster --servers 1 --agents 2 --wait
+          cat <<EOF > kind-config.yaml
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+          - role: control-plane
+          - role: worker
+          - role: worker
+          EOF
+          kind create cluster --name qa-cluster --config kind-config.yaml --wait 2m
           kubectl get nodes
 
-      - name: 3. Сборка образов и загрузка в кластер k3d
+      - name: 3. Сборка образов и загрузка в кластер Kubernetes
         if: github.event.action != 'closed'
         run: |
           docker build -t test-env-backend:ci ./app/backend
           docker build -t test-env-frontend:ci ./app/frontend
           docker build -t test-env-tests:ci ./tests
-          k3d image import test-env-backend:ci test-env-frontend:ci test-env-tests:ci -c qa-cluster
+          kind load docker-image test-env-backend:ci --name qa-cluster
+          kind load docker-image test-env-frontend:ci --name qa-cluster
+          kind load docker-image test-env-tests:ci --name qa-cluster
 
       - name: 4. Развёртывание изолированной тестовой среды через Helm
         if: github.event.action != 'closed'
@@ -51,7 +60,7 @@ jobs:
           kubectl run qa-test-job --rm -i --restart=Never \
             --image=test-env-tests:ci \
             --image-pull-policy=IfNotPresent \
-            --namespace=$ENV_NS -- pytest -v --alluredir=/tmp/allure-results
+            --namespace=$ENV_NS -- pytest -v
 
       - name: 6. Сохранение результатов Allure в артефакты сборки
         if: always() && github.event.action != 'closed'
