@@ -4,9 +4,9 @@ metadata:
   name: env-resource-quota
 spec:
   hard:
-    limits.cpu: {{ .Values.resources.cpuLimit | quote }}
-    limits.memory: {{ .Values.resources.memoryLimit | quote }}
     pods: "15"
+    services: "10"
+    configmaps: "10"
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

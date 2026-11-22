@@ -35,11 +35,9 @@ jobs:
           docker build -t test-env-backend:ci ./app/backend
           docker build -t test-env-frontend:ci ./app/frontend
           docker build -t test-env-tests:ci ./tests
-          docker pull postgres:15-alpine
-          docker pull axllent/mailpit:latest
-          docker pull wiremock/wiremock:3.9.1
-          docker pull selenium/standalone-chrome:4.25.0
-          kind load docker-image test-env-backend:ci test-env-frontend:ci test-env-tests:ci postgres:15-alpine axllent/mailpit:latest wiremock/wiremock:3.9.1 selenium/standalone-chrome:4.25.0 --name qa-cluster
+          kind load docker-image test-env-backend:ci --name qa-cluster
+          kind load docker-image test-env-frontend:ci --name qa-cluster
+          kind load docker-image test-env-tests:ci --name qa-cluster
 
       - name: 4. Развёртывание изолированной тестовой среды через Helm
         if: github.event.action != 'closed'
