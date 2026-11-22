@@ -18,7 +18,7 @@ jobs:
 
       - name: 2. Установка k3d и создание 3-узлового кластера Kubernetes
         run: |
-          sudo wget -q -O /usr/local/bin/k3d https://github.com
+          sudo curl -fsSL -o /usr/local/bin/k3d https://github.com
           sudo chmod +x /usr/local/bin/k3d
           k3d cluster create qa-cluster --servers 1 --agents 2 --wait
           kubectl get nodes
@@ -65,4 +65,4 @@ jobs:
         if: always()
         run: |
           helm uninstall qa-release -n $ENV_NS || true
-          kubectl delete namespace $ENV_NS --ignore-not-found=true
+          kubectl delete namespace $ENV_NS --ignore-not-found=true || true
