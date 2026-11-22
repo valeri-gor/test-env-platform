@@ -16,19 +16,16 @@ jobs:
       - name: 1. Получение исходного кода
         uses: actions/checkout@v4
 
-      - name: 2. Создание 3-узлового кластера Kubernetes (k3d)
-        uses: AbsaOSS/k3d-action@v2
-        with:
-          cluster-name: qa-cluster
-          args: >-
-            --servers 1
-            --agents 2
-            --wait
+      - name: 2. Установка k3d и создание 3-узлового кластера Kubernetes
+        run: |
+          wget -q -O /usr/local/bin/k3d https://github.com
+          sudo chmod +x /usr/local/bin/k3d
+          k3d cluster create qa-cluster --servers 1 --agents 2 --wait
+          kubectl get nodes
 
       - name: 3. Сборка образов и загрузка в кластер k3d
         if: github.event.action != 'closed'
         run: |
-          kubectl get nodes
           docker build -t test-env-backend:ci ./app/backend
           docker build -t test-env-frontend:ci ./app/frontend
           docker build -t test-env-tests:ci ./tests
