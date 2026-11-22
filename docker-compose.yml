@@ -1,0 +1,62 @@
+ services:
+    postgres:
+      image: postgres:15-alpine
+      environment:
+        POSTGRES_DB: test_db
+        POSTGRES_USER: qa_user
+        POSTGRES_PASSWORD: qa_pass
+      volumes:
+        - ./app/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      healthcheck:
+        test: [ "CMD-SHELL", "pg_isready -U qa_user -d test_db" ]
+        interval: 5s
+        retries: 5
+
+    wiremock:
+      image: wiremock/wiremock:3.9.1
+      ports:
+        - "8081:8080"
+      volumes:
+        - ./wiremock/mappings:/home/wiremock/mappings
+
+    mailpit:
+      image: axllent/mailpit:latest
+      ports:
+        - "8025:8025"
+
+    backend:
+      build: ./app/backend
+      ports:
+        - "8000:8000"
+      environment:
+        DATABASE_URL: postgresql://qa_user:qa_pass@postgres:5432/test_db
+        WIREMOCK_URL: http://wiremock:8080
+        SMTP_HOST: mailpit
+        SMTP_PORT: "1025"
+      depends_on:
+        postgres:
+          condition: service_healthy
+
+    frontend:
+      build: ./app/frontend
+      ports:
+        - "8080:80"
+      depends_on:
+        - backend
+
+    selenium-chrome:
+      image: selenium/standalone-chrome:4.25.0
+      shm_size: 1gb
+      ports:
+        - "4444:4444"
+
+    test-runner:
+      build: ./tests
+      volumes:
+        - ./allure-results:/allure-results
+      depends_on:
+        - backend
+        - frontend
+        - selenium-chrome
+        - wiremock
+        - mailpit

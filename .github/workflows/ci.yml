@@ -1,0 +1,71 @@
+name: Dynamic QA Environment Lifecycle (k3d + Helm + Allure)
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    types: [ opened, synchronize, reopened, closed ]
+
+env:
+  ENV_NS: test-pr-${{ github.event.pull_request.number || 'main' }}
+
+jobs:
+  manage-test-environment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. Получение исходного кода
+        uses: actions/checkout@v4
+
+      - name: 2. Создание 3-узлового кластера Kubernetes (k3d)
+        uses: AbsaOSS/k3d-action@v2
+        with:
+          cluster-name: qa-cluster
+          args: >-
+            --servers 1
+            --agents 2
+            --wait
+
+      - name: 3. Сборка образов и загрузка в кластер k3d
+        if: github.event.action != 'closed'
+        run: |
+          docker build -t test-env-backend:ci ./app/backend
+          docker build -t test-env-frontend:ci ./app/frontend
+          docker build -t test-env-tests:ci ./tests
+          k3d image import test-env-backend:ci test-env-frontend:ci test-env-tests:ci -c qa-cluster
+
+      - name: 4. Развёртывание изолированной тестовой среды через Helm
+        if: github.event.action != 'closed'
+        run: |
+          kubectl create namespace $ENV_NS --dry-run=client -o yaml | kubectl apply -f -
+          kubectl label namespace $ENV_NS managed-by=qa-ci --overwrite
+          helm upgrade --install qa-release ./helm/test-env \
+            --namespace $ENV_NS \
+            --set envName=$ENV_NS \
+            --set imageTag=ci \
+            --wait --timeout 3m
+          kubectl get pods,svc,resourcequota,networkpolicy -n $ENV_NS
+
+      - name: 5. Настройка заглушки WireMock и запуск автотестов (pytest + Selenium + k6)
+        if: github.event.action != 'closed'
+        run: |
+          kubectl port-forward svc/wiremock 8081:8080 -n $ENV_NS &
+          sleep 3
+          curl -X POST http://localhost:8081/__admin/mappings -d @wiremock/mappings/payment.json
+          kubectl run qa-test-job --rm -i --restart=Never \
+            --image=test-env-tests:ci \
+            --image-pull-policy=IfNotPresent \
+            --namespace=$ENV_NS -- pytest -v
+
+      - name: 6. Генерация отчёта Allure
+        if: always() && github.event.action != 'closed'
+        uses: simple-elf/allure-report-action@v1.7
+        with:
+          allure_results: allure-results
+          allure_history: allure-history
+          keep_reports: 10
+
+      - name: 7. Удаление тестовой среды после проверки или закрытия PR
+        if: always()
+        run: |
+          helm uninstall qa-release -n $ENV_NS || true
+          kubectl delete namespace $ENV_NS --ignore-not-found=true

@@ -1,0 +1,16 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "/api/verify-slot"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "verified": true,
+      "provider": "WireMock-Stub"
+    }
+  }
+}

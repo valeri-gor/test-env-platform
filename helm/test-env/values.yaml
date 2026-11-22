@@ -1,0 +1,10 @@
+envName: "branch-default"
+imageTag: "latest"
+
+resources:
+  cpuLimit: "2"
+  memoryLimit: "2Gi"
+
+cleanup:
+  schedule: "0 */6 * * *"
+  ttlHours: 24

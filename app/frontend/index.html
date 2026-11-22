@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Тестовый стенд — Запись на приём</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; }
+        input, button { padding: 8px; margin: 5px 0; width: 100%; box-sizing: border-box; }
+        .card { border: 1px solid #ccc; padding: 10px; margin-top: 10px; border-radius: 6px; }
+    </style>
+</head>
+<body>
+<h2>Сервис записи на приём (QA Environment)</h2>
+<form id="bookingForm">
+    <input id="client_name" placeholder="Ваше имя" required />
+    <input id="email" type="email" placeholder="Email для подтверждения" required />
+    <input id="slot_time" placeholder="Время (например: 2026-11-26 14:00)" required />
+    <button type="submit" id="submitBtn">Записаться</button>
+</form>
+<p id="statusMsg"></p>
+<h3>Текущие записи в тестовой БД:</h3>
+<div id="list"></div>
+
+<script>
+    const API = window.location.hostname === 'localhost' && window.location.port === '8080'
+        ? 'http://localhost:8000' : '/api-proxy';
+
+    async function loadList() {
+        const res = await fetch('http://localhost:8000/api/appointments');
+        const data = await res.json();
+        document.getElementById('list').innerHTML = data.map(
+            i => `<div class="card"><b>#${i.id}</b> ${i.client_name} (${i.email}) — ${i.slot_time}</div>`
+        ).join('');
+    }
+
+    document.getElementById('bookingForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const body = {
+            client_name: document.getElementById('client_name').value,
+            email: document.getElementById('email').value,
+            slot_time: document.getElementById('slot_time').value
+        };
+        const res = await fetch('http://localhost:8000/api/appointments', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
+        });
+        document.getElementById('statusMsg').innerText = res.ok ? 'Запись успешно создана!' : 'Ошибка создания';
+        loadList();
+    };
+    loadList();
+</script>
+</body>
+</html>
