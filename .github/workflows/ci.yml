@@ -18,7 +18,7 @@ jobs:
 
       - name: 2. Установка k3d и создание 3-узлового кластера Kubernetes
         run: |
-          wget -q -O /usr/local/bin/k3d https://github.com
+          sudo wget -q -O /usr/local/bin/k3d https://github.com
           sudo chmod +x /usr/local/bin/k3d
           k3d cluster create qa-cluster --servers 1 --agents 2 --wait
           kubectl get nodes
