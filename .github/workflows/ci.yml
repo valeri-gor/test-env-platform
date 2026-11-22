@@ -18,7 +18,7 @@ jobs:
 
       - name: 2. Установка k3d и создание 3-узлового кластера Kubernetes
         run: |
-          curl -s https://githubusercontent.com | TAG=v5.7.4 bash
+          brew install k3d
           k3d cluster create qa-cluster --servers 1 --agents 2 --wait
           kubectl get nodes
 
